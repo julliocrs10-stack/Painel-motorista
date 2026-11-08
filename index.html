@@ -459,6 +459,25 @@
   .mp-banner .mp-title{font-size:1.7em;} .mp-banner .mp-emoji{font-size:2.2em;}
   .mp-empty{font-size:.85em;text-align:center;opacity:.8;padding:.4em;}
   .mock-pos{font-size:11px;color:var(--text-muted);text-align:center;margin:8px 0 0;}
+  .mock2{position:relative;display:flex;width:100%;aspect-ratio:8/5;border-radius:16px;border:3px solid var(--border);overflow:hidden;background:#111820;touch-action:none;user-select:none;-webkit-user-select:none;}
+  .m2-pane{position:relative;flex:1;overflow:hidden;container-type:inline-size;cursor:crosshair;}
+  .m2-pane.uber{background:linear-gradient(160deg,#e9eef2,#d3dce4);border-right:2px dashed rgba(255,255,255,.35);}
+  .m2-pane.n99{background:linear-gradient(160deg,#243246,#141c27);}
+  .m2-pane svg{position:absolute;inset:0;width:100%;height:100%;opacity:.5;}
+  .m2-lab{position:absolute;top:5px;left:6px;font-family:'Space Grotesk',sans-serif;font-weight:800;font-size:10px;letter-spacing:.05em;padding:2px 7px;border-radius:99px;background:rgba(0,0,0,.55);color:#fff;z-index:2;}
+  .m2-pane.sel .m2-lab{background:var(--amber);color:#241704;}
+  .m2-offer{position:absolute;left:4%;right:4%;bottom:4%;height:36%;border-radius:10px;padding:3%;display:flex;align-items:center;justify-content:space-between;gap:8px;}
+  .m2-pane.uber .m2-offer{background:#fff;color:#111;} .m2-pane.n99 .m2-offer{background:#2b3341;color:#f3f5f8;}
+  .m2-offer .p{font-weight:800;font-size:4.6cqw;font-family:'Space Grotesk',sans-serif;line-height:1.1;} .m2-offer .m{font-size:2.6cqw;opacity:.7;}
+  .m2-offer .b{border-radius:99px;padding:1.6cqw 4.4cqw;font-weight:700;font-size:2.8cqw;} .m2-pane.uber .m2-offer .b{background:#276ef1;color:#fff;} .m2-pane.n99 .m2-offer .b{background:#f5d400;color:#222;}
+  .m2-pane .mock-pop{padding:.6em .8em;cursor:grab;touch-action:none;z-index:3;transition:background .18s,border-radius .18s;}
+  .m2-pane .mock-pop.ed-sel{outline:2px dashed #fff;outline-offset:3px;}
+  .mp-tag{display:inline-block;font-family:'Space Grotesk',sans-serif;font-weight:800;font-size:.62em;letter-spacing:.06em;padding:.12em .55em;border-radius:99px;background:rgba(127,127,127,.35);color:inherit;margin-right:.5em;vertical-align:middle;}
+  .ed-range{width:100%;}
+  .ed-hint{font-size:11.5px;color:var(--text-muted);margin:6px 0 2px;}
+  .side-tools{display:flex;justify-content:center;gap:8px;margin:-2px 0 6px;}
+  .side-mini{width:36px;height:36px;border-radius:12px;border:1px solid var(--border);background:var(--surface-2);color:var(--text-muted);display:flex;align-items:center;justify-content:center;cursor:pointer;padding:0;}
+  .side-mini svg{width:18px;height:18px;} .side-mini:hover{color:var(--text);} .side-mini.privacy-on{color:var(--amber);border-color:var(--amber);}
   .cop-examples{display:flex;gap:6px;justify-content:center;flex-wrap:wrap;margin-top:8px;}
   .cop-examples .chip{font-size:11.5px;padding:7px 11px;}
   .cop-examples .chip.active{background:linear-gradient(180deg,#FFCF7C,var(--amber));color:#241704;border-color:transparent;}
@@ -1584,11 +1603,14 @@
     apps:{uber:true, n99:true}, popupSeg:8,
     estilo:'completo', tamanho:'m', formato:'suave', fundo:'escuro', opac:92,
     cores:{verde:'#4FD1A5', amarelo:'#F2A93B', vermelho:'#E8615A'},
-    pos:{x:1, y:0}, mostrar:{rsKm:true, rsHora:true, lucro:true, custo:false, motivos:true} };
+    pos:{x:1, y:0}, mostrar:{rsKm:true, rsHora:true, lucro:true, custo:false, motivos:true},
+    popups:{uber:{x:4,y:3,w:92,esc:80,tag:true}, n99:{x:4,y:3,w:92,esc:80,tag:true}} };
+  const POPUP_DEF = {x:4,y:3,w:92,esc:80,tag:true};
   function cop(){
     const c = state.copiloto || {};
     const out = Object.assign({}, COP_DEFAULT, c);
     ['apps','cores','pos','mostrar'].forEach(k=>{ out[k] = Object.assign({}, COP_DEFAULT[k], c[k]||{}); });
+    out.popups = {uber:Object.assign({}, POPUP_DEF, (c.popups||{}).uber||{}), n99:Object.assign({}, POPUP_DEF, (c.popups||{}).n99||{})};
     delete out.jornadaInicio; delete out.soJornada; delete out.popupPos;
     state.copiloto = out; return out;
   }
@@ -1636,41 +1658,46 @@
   // ---- pop-up (a mesma aparência vai ser usada pelo app Android) ----
   const POP_SZ = {p:.85, m:1, g:1.2}, POP_W = {p:62, m:80, g:96}, POP_RAD = {reto:'4px', suave:'1.25em', redondo:'2.2em'};
   const POS_X = ['Esquerda','Centro','Direita'], POS_Y = ['Topo','Meio','Baixo'];
-  function popHtml(r){
-    const c = cop();
-    const sty = (extra)=>`left:50%;--tx:-50%;top:50%;--ty:-50%;width:80%;${extra}`;
-    if(!r) return `<div class="mock-pop" style="${sty('background:rgba(18,22,30,.9);color:#EEF2F7;border:2px dashed #667;border-radius:1.2em;font-size:calc(13px*var(--ps))')}"><div class="mp-empty">Preencha os valores de teste para ver o pop-up.</div></div>`;
+  let edApp = 'uber';
+  const APP_NOME = {uber:'UBER', n99:'99'};
+  function popHtml(r, app){
+    const c = cop(); app = app||'uber';
+    const pc = c.popups[app];
+    const w = Math.min(100, Math.max(30, +pc.w||92)), x = Math.min(Math.max(0,+pc.x||0), 100-w), y = Math.min(92, Math.max(0,+pc.y||0));
+    const pos = `left:${x}%;top:${y}%;width:${w}%;font-size:calc(2.275cqw*${(+pc.esc||80)/100})`;
+    const selCls = app===edApp ? ' ed-sel' : '';
+    if(!r) return `<div class="mock-pop${selCls}" data-app="${app}" style="${pos};background:rgba(18,22,30,.9);color:#EEF2F7;border:2px dashed #667;border-radius:1.2em"><div class="mp-empty">Preencha os valores de teste.</div></div>`;
     const cor = c.cores[r.nivel], op = c.opac/100;
     let bg, fg, titleCol, subCol, boxBg, border;
     if(c.fundo==='claro'){ bg=`rgba(255,255,255,${op})`; fg='#1a1f29'; titleCol=shade(cor,-.35); subCol='#5b6577'; boxBg='rgba(0,0,0,.06)'; border=`2px solid ${cor}`; }
     else if(c.fundo==='cor'){ bg=rgbaOf(cor,op); fg='#0b1410'; titleCol='#0b1410'; subCol='rgba(11,20,16,.72)'; boxBg='rgba(255,255,255,.38)'; border=`2px solid ${shade(cor,-.3)}`; }
     else { bg=`rgba(18,22,30,${op})`; fg='#EEF2F7'; titleCol=cor; subCol='#9aa4b5'; boxBg='rgba(255,255,255,.08)'; border=`2px solid ${cor}`; }
     const t = {verde:['🟢','VALE A PENA'], amarelo:['🟡','NO LIMITE'], vermelho:['🔴','NÃO VALE']}[r.nivel];
+    const tag = pc.tag ? `<span class="mp-tag">${APP_NOME[app]}</span>` : '';
     const base = c.base==='liquido' ? 'líquido' : 'bruto';
     const mt = [];
-    if(c.mostrar.rsKm)   mt.push(['R$/km',  fmt2(r.rsKm), '']);
-    if(c.mostrar.rsHora) mt.push(['R$/hora', fmt2(r.rsHora), '']);
+    const nvl = (v,vd,am)=> v>=vd ? '🟢' : v>=am ? '🟡' : '🔴';
+    if(c.mostrar.rsKm)   mt.push(['R$/km',  nvl(r.vKm,c.kmVerde,c.kmAmarelo)+' '+fmt2(r.rsKm), '']);
+    if(c.mostrar.rsHora) mt.push(['R$/hora', nvl(r.vH,c.horaVerde,c.horaAmarelo)+' '+fmt2(r.rsHora), '']);
     if(c.mostrar.lucro)  mt.push(['Lucro',   money(r.lucro), r.lucro>=0?'':'color:#E8615A']);
     if(c.mostrar.custo)  mt.push(['Custo',   money(r.custo), '']);
     let inner;
     if(c.estilo==='faixa'){
-      inner = `<div class="mp-banner"><span class="mp-emoji">${t[0]}</span><span class="mp-title" style="color:${titleCol}">${t[1]}</span></div>`;
+      inner = `<div class="mp-banner">${tag}<span class="mp-emoji">${t[0]}</span><span class="mp-title" style="color:${titleCol}">${t[1]}</span></div>`;
     } else if(c.estilo==='compacto'){
       const inl = mt.map(([l,v])=>`${l==='R$/km'?v+'/km':l==='R$/hora'?v+'/h':l.toLowerCase()+' '+v}`).join(' · ');
       const why = (c.mostrar.motivos && r.nivel!=='verde') ? `<div class="mp-sub" style="color:${subCol}">${escapeHtml(r.motivos[0])}</div>` : '';
-      inner = `<div class="mp-line"><span class="mp-emoji">${t[0]}</span><span class="mp-title" style="color:${titleCol}">${t[1]}</span></div>${inl?`<div class="mp-inline" style="margin-top:.3em">${inl}</div>`:''}${why}`;
+      inner = `<div class="mp-line">${tag}<span class="mp-emoji">${t[0]}</span><span class="mp-title" style="color:${titleCol}">${t[1]}</span></div>${inl?`<div class="mp-inline" style="margin-top:.3em">${inl}</div>`:''}${why}`;
     } else {
-      inner = `<div class="mp-head"><span class="mp-emoji">${t[0]}</span><div><div class="mp-title" style="color:${titleCol}">${t[1]}</div><div class="mp-sub" style="color:${subCol}">Seus limites (${base})</div></div></div>
+      inner = `<div class="mp-head"><span class="mp-emoji">${t[0]}</span><div><div class="mp-title" style="color:${titleCol}">${t[1]}</div><div class="mp-sub" style="color:${subCol}">${tag}Seus limites (${base})</div></div></div>
         ${mt.length?`<div class="mp-grid">${mt.map(([l,v,s])=>`<div class="mp-m" style="background:${boxBg}"><div class="l">${l}</div><div class="v" style="${s}">${v}</div></div>`).join('')}</div>`:''}
         ${c.mostrar.motivos?`<ul class="mp-reasons">${r.motivos.map(x=>`<li>${escapeHtml(x)}</li>`).join('')}</ul>`:''}`;
     }
-    const xs = ['left:6px','left:50%;--tx:-50%','right:6px'][c.pos.x];
-    const ys = ['top:20px','top:50%;--ty:-50%','bottom:8px'][c.pos.y];
-    return `<div class="mock-pop" style="${xs};${ys};width:${POP_W[c.tamanho]}%;font-size:calc(14px*var(--ps)*${POP_SZ[c.tamanho]});border-radius:${POP_RAD[c.formato]};background:${bg};color:${fg};border:${border};box-shadow:0 8px 30px rgba(0,0,0,.45),0 0 22px ${rgbaOf(cor,.28)}">${inner}</div>`;
+    return `<div class="mock-pop${selCls}" data-app="${app}" style="${pos};border-radius:${POP_RAD[c.formato]};background:${bg};color:${fg};border:${border};box-shadow:0 6px 20px rgba(0,0,0,.45),0 0 16px ${rgbaOf(cor,.28)}">${inner}</div>`;
   }
   let copSim = {valor:'22', km:'8', min:'17', buscaKm:'1', nota:'4,9'};
   let copExSel = 'bom';
-  let copOpen = 'aparencia';
+  let copOpen = 'posicao';
   const COP_EX = {
     bom:   {label:'🟢 Corrida boa', v:{valor:'22', km:'8',   min:'17', buscaKm:'1',   nota:'4,9'}},
     medio: {label:'🟡 No limite',   v:{valor:'14', km:'7.5', min:'20', buscaKm:'2',   nota:'4,8'}},
@@ -1678,11 +1705,13 @@
   };
   function simResult(){ return avaliarOferta({valor:parseDecimal(copSim.valor), km:parseDecimal(copSim.km), min:parseDecimal(copSim.min), buscaKm:copSim.buscaKm===''?null:parseDecimal(copSim.buscaKm), nota:copSim.nota===''?null:parseDecimal(copSim.nota)}); }
   function copRefresh(){
-    const pop = document.getElementById('copPop'); if(pop) pop.innerHTML = popHtml(simResult());
-    const c = cop(), lab = document.getElementById('copPosLabel'); if(lab) lab.textContent = `${POS_Y[c.pos.y]} · ${POS_X[c.pos.x].toLowerCase()}`;
+    const res = simResult();
+    ['uber','n99'].forEach(a=>{ const sl = document.getElementById('copPop_'+a); if(sl) sl.innerHTML = popHtml(res, a); const pn = document.querySelector(`.m2-pane[data-pane="${a}"]`); if(pn) pn.classList.toggle('sel', a===edApp); });
+    const c = cop();
     const S = (k,txt)=>{ const el = document.querySelector(`[data-sum="${k}"]`); if(el) el.textContent = txt; };
     const nm = {completo:'Completo', compacto:'Compacto', faixa:'Só faixa'}, tm = {p:'pequeno', m:'médio', g:'grande'}, fm = {reto:'reto', suave:'suave', redondo:'redondo'}, fd = {escuro:'escuro', claro:'claro', cor:'colorido'};
-    S('aparencia', `${nm[c.estilo]} · ${tm[c.tamanho]} · ${fm[c.formato]} · fundo ${fd[c.fundo]}`);
+    S('aparencia', `${nm[c.estilo]} · ${fm[c.formato]} · fundo ${fd[c.fundo]}`);
+    S('posicao', `Uber: ${c.popups.uber.w}% de largura · 99: ${c.popups.n99.w}% de largura`);
     const on = Object.entries({rsKm:'R$/km', rsHora:'R$/hora', lucro:'lucro', custo:'custo', motivos:'motivos'}).filter(([k])=>c.mostrar[k]).map(([,l])=>l);
     S('mostrar', on.join(', ') || 'nada (só a cor)');
     S('regras', `Verde: ≥ ${fmt2(c.kmVerde)}/km e ${fmt2(c.horaVerde)}/h · ${c.base==='liquido'?'líquido':'bruto'}`);
@@ -1713,16 +1742,30 @@
         </div>
         <div class="cop-note">${st.aparelho?escapeHtml(st.aparelho)+' · Android '+escapeHtml(st.android||'')+' · app v'+escapeHtml(st.versao||''):''}<br>Leitura automática da oferta: <strong>experimental</strong> — vai ficar mais precisa com as telas gravadas.</div>`;
     }
+    if(id==='posicao'){
+      const pc = c.popups[edApp], nome = edApp==='uber'?'Uber':'99';
+      return `<div class="cop-seg"><button type="button" class="theme-opt ${edApp==='uber'?'active':''}" data-ed-app="uber">Pop-up do Uber</button><button type="button" class="theme-opt ${edApp==='n99'?'active':''}" data-ed-app="n99">Pop-up da 99</button></div>
+        <div class="ed-hint">👆 Arraste o pop-up na tela acima (ou toque num ponto) para escolher onde ele aparece no ${nome}. Na prática, cada lado é a metade da tela onde o app está.</div>
+        <div class="cop-sub">Largura <span id="edVal_w" style="color:var(--text)">${pc.w}%</span></div>
+        <input type="range" class="ed-range" min="30" max="100" step="1" value="${pc.w}" data-ed-range="w">
+        <div class="cop-sub">Tamanho das letras <span id="edVal_esc" style="color:var(--text)">${pc.esc}%</span></div>
+        <input type="range" class="ed-range" min="50" max="140" step="2" value="${pc.esc}" data-ed-range="esc">
+        <div class="cop-trow" style="margin-top:10px"><span>Mostrar o nome do app (${nome}) no pop-up</span><button type="button" class="switch sm ${pc.tag?'on':''}" data-ed-tag aria-label="Mostrar nome do app"></button></div>
+        <div class="cop-chips" style="margin-top:10px">
+          <button type="button" class="chip" data-ed-copy>Copiar para o ${edApp==='uber'?'99':'Uber'}</button>
+          <button type="button" class="chip" data-ed-reset>Voltar ao padrão</button>
+        </div>
+        <div class="cop-note">Quando você usa um app só, em tela cheia, o pop-up fica com a metade desse tamanho.</div>`;
+    }
     if(id==='aparencia'){
       const colorRow = (n,lbl)=>`<div class="cop-colorrow"><span class="lbl" style="color:${c.cores[n]}">${lbl}</span><div class="swatches" data-cor-group="${n}">${SW_PALETTE.map(h=>`<button type="button" class="sw ${c.cores[n].toLowerCase()===h.toLowerCase()?'sel':''}" data-cop-cor="${n}" data-hex="${h}" style="background:${h}" aria-label="${h}"></button>`).join('')}<input type="color" class="cop-color" data-cor="${n}" value="${c.cores[n]}" aria-label="Outra cor"></div></div>`;
       return `<div class="cop-sub">Estilo</div>${seg('estilo',[['completo','Completo'],['compacto','Compacto'],['faixa','Só faixa']])}
-        <div class="cop-sub">Tamanho</div>${seg('tamanho',[['p','Pequeno'],['m','Médio'],['g','Grande']])}
         <div class="cop-sub">Formato</div>${seg('formato',[['reto','Reto'],['suave','Suave'],['redondo','Redondo']])}
         <div class="cop-sub">Fundo</div>${seg('fundo',[['escuro','Escuro'],['claro','Claro'],['cor','Colorido']])}
         <div class="cop-sub">Transparência <span id="opacVal" style="color:var(--text)">${c.opac}%</span></div>
         <input type="range" class="cop-range" min="50" max="100" step="2" value="${c.opac}" data-cop-range="opac">
         <div class="cop-sub">Cores</div>${colorRow('verde','🟢 Bom')}${colorRow('amarelo','🟡 Limite')}${colorRow('vermelho','🔴 Ruim')}
-        <div class="cop-note">📍 Para escolher <strong>onde</strong> o pop-up aparece, toque na tela de pré-visualização acima.</div>`;
+        <div class="cop-note">📍 O <strong>tamanho</strong> e o <strong>lugar</strong> de cada pop-up (Uber e 99) ficam em “Onde o pop-up aparece”.</div>`;
     }
     if(id==='mostrar'){
       const row = (k,l)=>`<div class="cop-trow"><span>${l}</span><button type="button" class="switch sm ${c.mostrar[k]?'on':''}" data-cop-mostrar="${k}" aria-label="${l}"></button></div>`;
@@ -1747,7 +1790,7 @@
     return `<div class="sim-grid cop-grid">${sim('valor','Valor da corrida (R$)','0,00')}${sim('km','Distância total (km)','0')}${sim('min','Tempo total (min)','0')}${sim('buscaKm','Até o passageiro (km)','opcional')}${sim('nota','Nota do passageiro','opcional')}</div>
       <div class="cop-note">Digite uma oferta qualquer e veja o pop-up reagir na pré-visualização.</div>`;
   }
-  function fmtLabelAcc(){ return (window.AndroidBridge ? [['aparelho','📱','Neste aparelho (permissões e coletor)']] : []).concat([['aparencia','🎨','Aparência do pop-up'],['mostrar','👁️','O que mostrar'],['regras','🎯','O que é boa corrida'],['apps','📲','Apps e tempo'],['teste','🧪','Meus valores de teste']]); }
+  function fmtLabelAcc(){ return (window.AndroidBridge ? [['aparelho','📱','Neste aparelho (permissões e coletor)']] : []).concat([['posicao','📍','Onde o pop-up aparece (Uber e 99)'],['aparencia','🎨','Aparência do pop-up'],['mostrar','👁️','O que mostrar'],['regras','🎯','O que é boa corrida'],['apps','📲','Apps e tempo'],['teste','🧪','Meus valores de teste']]); }
   function renderCopiloto(){
     const c = cop();
     const accs = fmtLabelAcc().map(([id,ic,t])=>`
@@ -1758,20 +1801,20 @@
     document.getElementById('app').innerHTML = `
       <div class="eyebrow-row">
         <div class="eyebrow">Copiloto de corridas</div>
-        <div class="header-btns"><button type="button" class="icon-btn" id="btnSettings" aria-label="Ajustes">${ICONS.gear}</button></div>
+        <div class="header-btns"><button type="button" class="icon-btn js-privacy ${privacy?'privacy-on':''}" id="btnPrivacy" aria-label="Modo privacidade" aria-pressed="${privacy}">${privIcon()}</button><button type="button" class="icon-btn" id="btnSettings" aria-label="Ajustes">${ICONS.gear}</button></div>
       </div>
       <header><h1>Copiloto</h1></header>
       <div class="cop-status"><div><div class="t">Copiloto ${c.ativo?'ligado':'desligado'}</div><div class="s">${c.ativo?'Vai mostrar o pop-up nas ofertas.':'Não vai mostrar pop-ups.'}</div></div>
         <button type="button" class="switch ${c.ativo?'on':''}" data-cop-toggle="ativo" aria-label="Ligar ou desligar o copiloto" aria-pressed="${c.ativo}"></button></div>
       <div class="cop-layout">
         <div class="cop-left">
-          <div class="mock" id="copMock" aria-label="Pré-visualização do pop-up">
-            <svg class="mock-roads" viewBox="0 0 360 540" preserveAspectRatio="none" aria-hidden="true"><path d="M-10 120 L120 150 L240 90 L380 140" stroke="#3b4d63" stroke-width="10" fill="none"/><path d="M60 -10 L90 200 L70 380 L110 560" stroke="#3b4d63" stroke-width="8" fill="none"/><path d="M-10 330 L380 280" stroke="#2f3f52" stroke-width="12" fill="none"/><path d="M260 -10 L230 300 L280 560" stroke="#2f3f52" stroke-width="7" fill="none"/></svg>
-            <div class="mock-status"><span>9:41</span><span>●●●</span></div>
-            <div class="mock-offer"><div><div class="p">R$ 22,00</div><div class="m">8,0 km · 17 min</div></div><div class="b">Aceitar</div></div>
-            <div id="copPop"></div>
+          <div class="mock2" id="copMock" aria-label="Pré-visualização dos pop-ups: Uber à esquerda, 99 à direita">
+            <div class="m2-pane uber" data-pane="uber"><svg viewBox="0 0 100 62" preserveAspectRatio="none" aria-hidden="true"><path d="M-5 20 L30 26 L60 12 L105 24" stroke="#7d8da0" stroke-width="3" fill="none"/><path d="M20 -5 L28 35 L22 62" stroke="#7d8da0" stroke-width="2.4" fill="none"/></svg><span class="m2-lab">UBER</span>
+              <div class="m2-offer"><div><div class="p">R$ 22,00</div><div class="m">8,0 km · 17 min</div></div><div class="b">Aceitar</div></div><div id="copPop_uber"></div></div>
+            <div class="m2-pane n99" data-pane="n99"><svg viewBox="0 0 100 62" preserveAspectRatio="none" aria-hidden="true"><path d="M-5 20 L30 26 L60 12 L105 24" stroke="#7d8da0" stroke-width="3" fill="none"/><path d="M20 -5 L28 35 L22 62" stroke="#7d8da0" stroke-width="2.4" fill="none"/></svg><span class="m2-lab">99</span>
+              <div class="m2-offer"><div><div class="p">R$ 22,00</div><div class="m">8,0 km · 17 min</div></div><div class="b">Aceitar</div></div><div id="copPop_n99"></div></div>
           </div>
-          <div class="mock-pos">👆 Toque na tela para escolher onde aparece: <strong id="copPosLabel"></strong></div>
+          <div class="mock-pos">👆 Arraste o pop-up para onde quiser. Esquerda = Uber · Direita = 99.</div>
           <div class="cop-examples">${Object.entries(COP_EX).map(([k,e])=>`<button type="button" class="chip ${copExSel===k?'active':''}" data-cop-ex="${k}">${e.label}</button>`).join('')}</div>
         </div>
         <div class="cop-right">${accs}</div>
@@ -1818,10 +1861,13 @@
       copC.parentElement.querySelectorAll('.sw').forEach(b=> b.classList.toggle('sel', b===copC));
       const ci=copC.parentElement.querySelector('.cop-color'); if(ci) ci.value=h;
       const lb=copC.closest('.cop-colorrow').querySelector('.lbl'); if(lb) lb.style.color=h; copRefresh(); return; }
-    const mock = e.target.closest('#copMock');
-    if(mock){ const r=mock.getBoundingClientRect(), c=cop();
-      c.pos = {x:Math.min(2,Math.max(0,Math.floor((e.clientX-r.left)/r.width*3))), y:Math.min(2,Math.max(0,Math.floor((e.clientY-r.top)/r.height*3)))};
-      saveState(); copRefresh(); return; }
+    if(e.target.closest('#copMock')) return;
+    const edA = e.target.closest('[data-ed-app]');
+    if(edA){ edApp = edA.dataset.edApp; renderCopiloto(); return; }
+    const edT = e.target.closest('[data-ed-tag]');
+    if(edT){ const pc=cop().popups[edApp]; pc.tag=!pc.tag; saveState(); edT.classList.toggle('on', pc.tag); copRefresh(); return; }
+    if(e.target.closest('[data-ed-reset]')){ cop().popups[edApp] = Object.assign({}, POPUP_DEF); saveState(); renderCopiloto(); return; }
+    if(e.target.closest('[data-ed-copy]')){ const c=cop(), o=edApp==='uber'?'n99':'uber'; c.popups[o] = Object.assign({}, c.popups[edApp]); saveState(); copRefresh(); return; }
     if(e.target.closest('#copOpenSettings')){ openSettings(); return; }
     const copE = e.target.closest('[data-cop-ex]');
     if(copE){ copExSel = copE.dataset.copEx; copSim = Object.assign({}, COP_EX[copExSel].v);
@@ -1851,10 +1897,41 @@
     if(weekToggle && weekToggle.closest('#weekToggle')){ weekViewMode = weekToggle.dataset.mode; renderWeek(); return; }
   });
 
+  // ---- arrastar o pop-up na pré-visualização ----
+  let drag = null;
+  document.getElementById('app').addEventListener('pointerdown', (e)=>{
+    const pane = e.target.closest('.m2-pane'); if(!pane) return;
+    const app = pane.dataset.pane, c = cop(), pc = c.popups[app];
+    const pr = pane.getBoundingClientRect();
+    const popEl = e.target.closest('.mock-pop');
+    const w = Math.min(100, Math.max(30, +pc.w||92));
+    let offX, offY;
+    if(popEl){ const r = popEl.getBoundingClientRect(); offX = e.clientX - r.left; offY = e.clientY - r.top; }
+    else { offX = pr.width*w/200; offY = 14; }
+    const changed = edApp !== app; edApp = app;
+    drag = {app, pane, pr, offX, offY, w, moved:false, changed};
+    try{ pane.setPointerCapture(e.pointerId); }catch(_){}
+    moveDrag(e);
+    e.preventDefault();
+  });
+  function moveDrag(e){
+    if(!drag) return;
+    const {pr, offX, offY, w, app} = drag, pc = cop().popups[app];
+    pc.x = Math.round(Math.min(100-w, Math.max(0, (e.clientX - pr.left - offX)/pr.width*100))*10)/10;
+    pc.y = Math.round(Math.min(92, Math.max(0, (e.clientY - pr.top - offY)/pr.height*100))*10)/10;
+    drag.moved = true;
+    copRefresh();
+  }
+  document.getElementById('app').addEventListener('pointermove', (e)=>{ if(drag) moveDrag(e); });
+  const endDrag = ()=>{ if(!drag) return; const ch = drag.changed; drag = null; saveState(); if(ch) renderCopiloto(); };
+  document.getElementById('app').addEventListener('pointerup', endDrag);
+  document.getElementById('app').addEventListener('pointercancel', endDrag);
+
   document.getElementById('app').addEventListener('input', (e)=>{
     const t = e.target;
     if(t.classList && t.classList.contains('cop-in')){ cop()[t.dataset.cop] = parseDecimal(t.value); saveState(); copRefresh(); return; }
     if(t.classList && t.classList.contains('sim-in')){ copSim[t.dataset.sim] = t.value; copExSel = null; document.querySelectorAll('[data-cop-ex]').forEach(b=>b.classList.remove('active')); copRefresh(); return; }
+    if(t.dataset && t.dataset.edRange){ const c=cop(), k=t.dataset.edRange; c.popups[edApp][k]=parseInt(t.value,10); saveState(); const o=document.getElementById('edVal_'+k); if(o) o.textContent=t.value+'%'; copRefresh(); return; }
     if(t.dataset && t.dataset.copRange){ const c=cop(); c[t.dataset.copRange] = parseInt(t.value,10); saveState(); const o=document.getElementById('opacVal'); if(o) o.textContent = t.value+'%'; copRefresh(); return; }
     if(t.classList && t.classList.contains('cop-color')){ const c=cop(), n=t.dataset.cor; c.cores[n]=t.value; saveState();
       t.parentElement.querySelectorAll('.sw').forEach(b=> b.classList.toggle('sel', b.dataset.hex.toLowerCase()===t.value.toLowerCase()));
@@ -2138,13 +2215,13 @@
   // ---- tablet: menu lateral e reação à rotação ----
   document.getElementById('sideNav').innerHTML = `
     <div class="side-brand">${ICONS.uber}</div>
+    <div class="side-tools"><button type="button" class="side-mini js-privacy" data-nav="privacidade" aria-label="Ocultar valores" aria-pressed="false">${privIcon()}</button><button type="button" class="side-mini" data-nav="ajustes" aria-label="Ajustes">${ICONS.gear}</button></div>
     <button type="button" class="side-btn" data-nav="painel">${ICONS.dashboard}<span>Painel</span></button>
     <button type="button" class="side-btn" data-nav="escritorio">${ICONS.briefcase}<span>Escritório</span></button>
     <button type="button" class="side-btn" data-nav="copiloto">${ICONS.copilot}<span>Copiloto</span></button>
-    <button type="button" class="side-btn js-privacy" data-nav="privacidade" aria-pressed="false">${privIcon()}<span>Ocultar</span></button>
-    <button type="button" class="side-btn" data-nav="ajustes">${ICONS.gear}<span>Ajustes</span></button>`;
+    `;
   document.getElementById('sideNav').addEventListener('click', (e)=>{
-    const b = e.target.closest('.side-btn'); if(!b) return;
+    const b = e.target.closest('.side-btn, .side-mini'); if(!b) return;
     if(b.dataset.nav==='privacidade'){ togglePrivacy(); return; }
     if(b.dataset.nav==='ajustes'){ openSettings(); return; }
     viewMode = b.dataset.nav; render();
