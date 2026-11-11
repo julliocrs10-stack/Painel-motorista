@@ -473,6 +473,13 @@
   .m2-pane .mock-pop{padding:.6em .8em;cursor:grab;touch-action:none;z-index:3;transition:background .18s,border-radius .18s;}
   .m2-pane .mock-pop.ed-sel{outline:2px dashed #fff;outline-offset:3px;}
   .mp-tag{display:inline-block;font-family:'Space Grotesk',sans-serif;font-weight:800;font-size:.62em;letter-spacing:.06em;padding:.12em .55em;border-radius:99px;background:rgba(127,127,127,.35);color:inherit;margin-right:.5em;vertical-align:middle;}
+  .mp-top{display:flex;align-items:center;justify-content:space-between;gap:.6em;}
+  .mp-dot{display:inline-block;width:1.05em;height:1.05em;border-radius:50%;flex-shrink:0;}
+  .mp-row{display:flex;align-items:center;gap:.9em;}
+  .mp-row .mp-dot{margin-left:auto;}
+  .mp-nums{display:flex;gap:1.1em;margin-top:.5em;}
+  .mp-num{flex:1;min-width:0;} .mp-numv{font-family:'Space Grotesk',sans-serif;font-weight:800;line-height:1.05;letter-spacing:-.01em;} .mp-numv small{font-size:.42em;font-weight:600;margin-left:.2em;}
+  .mp-numl{font-size:.62em;text-transform:uppercase;letter-spacing:.06em;margin-top:.15em;font-family:'Space Grotesk',sans-serif;}
   .ed-range{width:100%;}
   .ed-hint{font-size:11.5px;color:var(--text-muted);margin:6px 0 2px;}
   .side-tools{display:flex;justify-content:center;gap:8px;margin:-2px 0 6px;}
@@ -1672,26 +1679,25 @@
     if(c.fundo==='claro'){ bg=`rgba(255,255,255,${op})`; fg='#1a1f29'; titleCol=shade(cor,-.35); subCol='#5b6577'; boxBg='rgba(0,0,0,.06)'; border=`2px solid ${cor}`; }
     else if(c.fundo==='cor'){ bg=rgbaOf(cor,op); fg='#0b1410'; titleCol='#0b1410'; subCol='rgba(11,20,16,.72)'; boxBg='rgba(255,255,255,.38)'; border=`2px solid ${shade(cor,-.3)}`; }
     else { bg=`rgba(18,22,30,${op})`; fg='#EEF2F7'; titleCol=cor; subCol='#9aa4b5'; boxBg='rgba(255,255,255,.08)'; border=`2px solid ${cor}`; }
-    const t = {verde:['🟢','VALE A PENA'], amarelo:['🟡','NO LIMITE'], vermelho:['🔴','NÃO VALE']}[r.nivel];
-    const tag = pc.tag ? `<span class="mp-tag">${APP_NOME[app]}</span>` : '';
-    const base = c.base==='liquido' ? 'líquido' : 'bruto';
-    const mt = [];
-    const nvl = (v,vd,am)=> v>=vd ? '🟢' : v>=am ? '🟡' : '🔴';
-    if(c.mostrar.rsKm)   mt.push(['R$/km',  nvl(r.vKm,c.kmVerde,c.kmAmarelo)+' '+fmt2(r.rsKm), '']);
-    if(c.mostrar.rsHora) mt.push(['R$/hora', nvl(r.vH,c.horaVerde,c.horaAmarelo)+' '+fmt2(r.rsHora), '']);
-    if(c.mostrar.lucro)  mt.push(['Lucro',   money(r.lucro), r.lucro>=0?'':'color:#E8615A']);
-    if(c.mostrar.custo)  mt.push(['Custo',   money(r.custo), '']);
+    const tag = pc.tag ? `<span class="mp-tag">${APP_NOME[app]}</span>` : '<span></span>';
+    const dot = `<span class="mp-dot" style="background:${cor};box-shadow:0 0 .9em ${rgbaOf(cor,.55)}"></span>`;
+    const numCol = (nv)=> c.fundo==='cor' ? fg : (c.fundo==='claro' ? shade(c.cores[nv],-.35) : c.cores[nv]);
+    const nvl = (v,vd,am)=> v>=vd ? 'verde' : v>=am ? 'amarelo' : 'vermelho';
+    const nK = nvl(r.vKm,c.kmVerde,c.kmAmarelo), nH = nvl(r.vH,c.horaVerde,c.horaAmarelo);
+    const num = (v,suf,lab,nv,big)=>`<div class="mp-num"><div class="mp-numv" style="color:${numCol(nv)};font-size:${big}em">${v}${suf?`<small style="color:${subCol}">${suf}</small>`:''}</div>${lab?`<div class="mp-numl" style="color:${subCol}">${lab}</div>`:''}</div>`;
     let inner;
     if(c.estilo==='faixa'){
-      inner = `<div class="mp-banner">${tag}<span class="mp-emoji">${t[0]}</span><span class="mp-title" style="color:${titleCol}">${t[1]}</span></div>`;
+      inner = `<div class="mp-top">${tag}${dot}</div>`;
     } else if(c.estilo==='compacto'){
-      const inl = mt.map(([l,v])=>`${l==='R$/km'?v+'/km':l==='R$/hora'?v+'/h':l.toLowerCase()+' '+v}`).join(' · ');
-      const why = (c.mostrar.motivos && r.nivel!=='verde') ? `<div class="mp-sub" style="color:${subCol}">${escapeHtml(r.motivos[0])}</div>` : '';
-      inner = `<div class="mp-line">${tag}<span class="mp-emoji">${t[0]}</span><span class="mp-title" style="color:${titleCol}">${t[1]}</span></div>${inl?`<div class="mp-inline" style="margin-top:.3em">${inl}</div>`:''}${why}`;
+      inner = `<div class="mp-row">${pc.tag?tag:''}${c.mostrar.rsKm?num(fmt2(r.rsKm),'/km','',nK,1.5):''}${c.mostrar.rsHora?num(fmt2(r.rsHora),'/h','',nH,1.5):''}${dot}</div>${(c.mostrar.motivos && r.nivel!=='verde')?`<div class="mp-sub" style="color:${subCol};margin-top:.35em">${escapeHtml(r.motivos[0])}</div>`:''}`;
     } else {
-      inner = `<div class="mp-head"><span class="mp-emoji">${t[0]}</span><div><div class="mp-title" style="color:${titleCol}">${t[1]}</div><div class="mp-sub" style="color:${subCol}">${tag}Seus limites (${base})</div></div></div>
-        ${mt.length?`<div class="mp-grid">${mt.map(([l,v,s])=>`<div class="mp-m" style="background:${boxBg}"><div class="l">${l}</div><div class="v" style="${s}">${v}</div></div>`).join('')}</div>`:''}
-        ${c.mostrar.motivos?`<ul class="mp-reasons">${r.motivos.map(x=>`<li>${escapeHtml(x)}</li>`).join('')}</ul>`:''}`;
+      const ex = [];
+      if(c.mostrar.lucro) ex.push('Lucro '+money(r.lucro));
+      if(c.mostrar.custo) ex.push('Custo '+money(r.custo));
+      inner = `<div class="mp-top">${tag}${dot}</div>
+        ${(c.mostrar.rsKm||c.mostrar.rsHora)?`<div class="mp-nums">${c.mostrar.rsKm?num(fmt2(r.rsKm),'','R$ por km',nK,2.1):''}${c.mostrar.rsHora?num(fmt2(r.rsHora),'','R$ por hora',nH,2.1):''}</div>`:''}
+        ${ex.length?`<div class="mp-sub" style="color:${subCol};margin-top:.5em">${ex.join(' · ')}</div>`:''}
+        ${(c.mostrar.motivos && r.nivel!=='verde')?`<ul class="mp-reasons" style="color:${fg}">${r.motivos.map(x=>`<li>${escapeHtml(x)}</li>`).join('')}</ul>`:''}`;
     }
     return `<div class="mock-pop${selCls}" data-app="${app}" style="${pos};border-radius:${POP_RAD[c.formato]};background:${bg};color:${fg};border:${border};box-shadow:0 6px 20px rgba(0,0,0,.45),0 0 16px ${rgbaOf(cor,.28)}">${inner}</div>`;
   }
