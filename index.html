@@ -510,9 +510,13 @@
   .cop-count{color:var(--text-muted);font-weight:400;}
   .dotc{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:6px;vertical-align:-1px;}
 
-  .pie-legend-row{background:none;border:0;color:inherit;font:inherit;text-align:left;width:100%;padding:3px 6px;border-radius:8px;cursor:pointer;}
+  .pie-legend-row{background:none;border:0;color:inherit;font-family:inherit;text-align:left;width:100%;padding:3px 6px;border-radius:8px;cursor:pointer;}
   .pie-legend-row.sel{background:var(--surface-2);}
   .pie-visual{cursor:pointer;}
+  .pie-visual{transition:transform .28s cubic-bezier(.22,1.1,.36,1),background .2s;}
+  .pie-visual.has-sel{box-shadow:0 8px 22px rgba(0,0,0,.45);}
+  .pd-rank{margin-left:auto;font-size:10px;font-weight:600;color:var(--text-muted);}
+  .pd-tip{display:flex;gap:8px;font-size:12px;line-height:1.4;margin-top:8px;padding:8px 10px;border-radius:10px;background:rgba(255,255,255,.04);}
   .pie-hint{font-size:10px;color:var(--text-muted);text-align:center;margin-top:10px;}
   .pie-detail{margin-top:10px;border:1.5px solid var(--border);border-radius:12px;padding:10px;background:var(--surface-2);animation:pdIn .25s ease both;}
   @keyframes pdIn{from{opacity:0;transform:translateY(6px);}to{opacity:1;transform:none;}}
@@ -1825,6 +1829,9 @@
     const seg = (key,opts)=>`<div class="cop-seg">${opts.map(([v,l])=>`<button type="button" class="theme-opt ${String(c[key])===String(v)?'active':''}" data-cop-seg="${key}" data-v="${v}">${l}</button>`).join('')}</div>`;
     const fld = (key,label,val)=>`<div><div class="field-label">${label}</div><input class="num-input cop-in" data-cop="${key}" type="text" inputmode="decimal" value="${inVal(val)}"></div>`;
     const sim = (key,label,ph)=>`<div><div class="field-label">${label}</div><input class="num-input sim-in" data-sim="${key}" type="text" inputmode="decimal" value="${copSim[key]}" placeholder="${ph}"></div>`;
+    if(id==='aparelho' && !window.AndroidBridge){
+      return `<div class="cop-note"><strong>Você está no navegador.</strong> As permissões, o coletor e o teste do pop-up só existem dentro do <strong>app Android</strong> do painel. Para ter o Copiloto neste aparelho, instale o <code>painel-motorista.apk</code> (da página Releases do GitHub) e abra por ele. Aqui no navegador você pode configurar categorias e aparência normalmente.</div>`;
+    }
     if(id==='aparelho'){
       let st = {}; try{ st = JSON.parse(AndroidBridge.status()); }catch(e){}
       const ok = !!st.acessibilidade;
@@ -1888,7 +1895,7 @@
       <div class="cop-chips">${mch('rsKm','R$/km')}${mch('rsHora','R$/hora')}${mch('lucro','Lucro')}${mch('custo','Custo')}${mch('motivos','Motivos')}${mch('categoria','Nome da categoria')}</div>
       <div class="cop-note">A borda, a bolinha e os números usam a cor das suas categorias. No estilo “Só faixa” aparece apenas a cor.</div>`;
   }
-  function fmtLabelAcc(){ return (window.AndroidBridge ? [['aparelho','📱','Neste aparelho (permissões e coletor)']] : []).concat([['categorias','🎯','Categorias e regras'],['popup','📍','Pop-up: lugar e tamanho'],['visual','🎨','Aparência e conteúdo']]); }
+  function fmtLabelAcc(){ return (window.AndroidBridge ? [['aparelho','📱','Neste aparelho (permissões e coletor)']] : [['aparelho','📱','Neste aparelho (só no app)']]).concat([['categorias','🎯','Categorias e regras'],['popup','📍','Pop-up: lugar e tamanho'],['visual','🎨','Aparência e conteúdo']]); }
   function reRenderCop(){ const y = window.scrollY; renderCopiloto(); window.scrollTo(0, y); }
   function renderCopiloto(){
     const c = cop();
@@ -2136,17 +2143,42 @@
   // ---- detalhes da fatia da pizza ----
   function showPieDetail(card, i){
     const L = JSON.parse(card.dataset.pie), total = parseFloat(card.dataset.pieTotal), d = card.querySelector('.pie-detail');
+    const vis = card.querySelector('.pie-visual'), hole = vis.querySelector('.hole');
+    if(!vis.dataset.holeOrig) vis.dataset.holeOrig = hole.innerHTML;
+    const hint = card.querySelector('.pie-hint');
+    // toque de novo na mesma fatia = volta ao normal
+    if(card.dataset.sel === String(i)){
+      card.dataset.sel = ''; vis.classList.remove('has-sel'); vis.style.transform = '';
+      hole.innerHTML = vis.dataset.holeOrig; d.hidden = true; hint.hidden = false;
+      card.querySelectorAll('.pie-legend-row').forEach(r=>r.classList.remove('sel'));
+      vis.style.background = vis.dataset.fullBg || vis.style.background; return;
+    }
     const it = L[i]; if(!it) return;
-    const pct = it.v/total*100, tipo = card.dataset.pieType==='ganho' ? 'dos ganhos' : 'dos gastos';
+    card.dataset.sel = String(i);
+    const money0 = (v)=> money(v);
+    const pct = it.v/total*100, pctTxt = pct.toFixed(1).replace('.',',')+'%', ganho = card.dataset.pieType==='ganho';
+    // fatia selecionada fica viva, as outras esmaecem
+    if(!vis.dataset.fullBg) vis.dataset.fullBg = vis.style.background;
+    let acc = 0; const stops = L.map((x,k)=>{ const f=acc; acc += x.v/total*100; const col = k===i ? x.c : rgbaOf(x.c,.22); return `${col} ${f}% ${acc}%`; });
+    vis.removeAttribute('data-anim-pie'); vis.style.background = `conic-gradient(${stops.join(', ')})`;
+    vis.classList.add('has-sel'); vis.style.transform = 'scale(1.07)';
+    hole.innerHTML = `<div class="tot" style="color:${it.c};line-height:1.1">${money0(it.v)}</div><div class="lbl" style="max-width:90%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escapeHtml(it.n)}</div><div class="lbl" style="color:${it.c};font-weight:700">${pctTxt}</div>`;
     card.querySelectorAll('.pie-legend-row').forEach((r,k)=>r.classList.toggle('sel', k===i));
-    card.querySelector('.pie-hint').hidden = true;
+    hint.hidden = true;
     const rank = it.r===1 ? 'a maior categoria' : `a ${it.r}ª maior categoria`;
-    const dif = L[0].v>it.v ? ` Está R$ ${(L[0].v-it.v).toFixed(2).replace('.',',')} abaixo da maior (${escapeHtml(L[0].n)}).` : '';
+    const fm = (v)=> money0(v);
+    const dicas = [];
+    dicas.push(ganho ? `Se esta categoria crescer 10%, seu total sobe ${fm(it.v*0.1)} no período.` : `Se você reduzir 10% aqui, economiza ${fm(it.v*0.1)} no período.`);
+    if(pct>=50) dicas.push(ganho ? 'Mais da metade do que você ganha vem só daqui. Vale ter uma segunda fonte para não depender de uma só.' : 'Mais da metade dos seus gastos está nesta categoria — é onde mais compensa economizar.');
+    else if(it.r===1) dicas.push(ganho ? 'É a sua principal fonte de ganho no período.' : 'É o seu maior gasto do período — comece a olhar por aqui.');
+    if(L.length>1 && it.r>1) dicas.push(`Está ${fm(L[0].v-it.v)} abaixo da maior (${escapeHtml(L[0].n)}).`);
+    if(L.length>1 && it.r===1) dicas.push(`Está ${fm(it.v-L[1].v)} acima da segunda (${escapeHtml(L[1].n)}).`);
     d.hidden = false; d.style.borderColor = it.c;
-    d.innerHTML = `<div class="pd-name"><span class="pie-dot" style="background:${it.c}"></span>${escapeHtml(it.n)}</div>
-      <div class="pd-big"><span class="pd-val">${money(it.v)}</span><span class="pd-pct" style="color:${it.c}">${pct.toFixed(1).replace('.',',')}%</span></div>
+    d.innerHTML = `<div class="pd-name"><span class="pie-dot" style="background:${it.c}"></span>${escapeHtml(it.n)}<span class="pd-rank">${rank}</span></div>
+      <div class="pd-big"><span class="pd-val">${money0(it.v)}</span><span class="pd-pct" style="color:${it.c}">${pctTxt}</span></div>
       <div class="pd-bar"><i style="width:${pct}%;background:${it.c}"></i></div>
-      <div class="pd-txt">Ocupa ${pct.toFixed(1).replace('.',',')}% ${tipo} do período e é ${rank}.${dif}</div>`;
+      <div class="pd-txt">Ocupa ${pctTxt} ${ganho?'dos ganhos':'dos gastos'} do período.</div>
+      ${dicas.map(t=>`<div class="pd-tip"><span>💡</span><span>${t}</span></div>`).join('')}`;
   }
   document.getElementById('app').addEventListener('click', (e)=>{
     const row = e.target.closest('.pie-legend-row[data-pie-i]');
@@ -2154,7 +2186,7 @@
     const vis = e.target.closest('.pie-visual');
     if(vis){ const card = vis.closest('.pie-card'); if(!card || !card.dataset.pie) return;
       const r = vis.getBoundingClientRect(), dx = e.clientX-(r.left+r.width/2), dy = e.clientY-(r.top+r.height/2);
-      const dist = Math.hypot(dx,dy); if(dist < r.width*0.30) return;
+      const dist = Math.hypot(dx,dy); if(dist < r.width*0.30){ if(card.dataset.sel) showPieDetail(card, +card.dataset.sel); return; }
       let ang = Math.atan2(dx,-dy)*180/Math.PI; if(ang<0) ang += 360;
       const L = JSON.parse(card.dataset.pie), total = parseFloat(card.dataset.pieTotal); let acc = 0;
       for(let i=0;i<L.length;i++){ acc += L[i].v/total*360; if(ang<=acc){ showPieDetail(card,i); break; } }
